@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSCE ↔ Nasjonal Korrelasjon</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --card: #ffffff; --accent: #2563eb; --accent-light: #dbeafe;
+    --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0;
+    --green: #16a34a; --green-bg: #dcfce7; --yellow: #ca8a04; --yellow-bg: #fef9c3;
+    --red: #dc2626; --red-bg: #fee2e2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  header { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; padding: 1.5rem 2rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+  header h1 { font-size: 1.3rem; font-weight: 700; }
+  header p { font-size: .85rem; opacity: .85; margin-top: .25rem; }
+  .toolbar { display: flex; gap: .75rem; margin-top: .75rem; flex-wrap: wrap; align-items: center; }
+  #search { flex: 1; min-width: 200px; padding: .5rem .75rem; border: none; border-radius: 8px; font-size: .9rem; outline: none; background: rgba(255,255,255,.15); color: white; }
+  #search::placeholder { color: rgba(255,255,255,.6); }
+  #search:focus { background: rgba(255,255,255,.25); }
+  .filter-btn { padding: .4rem .75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,.3); background: transparent; color: white; cursor: pointer; font-size: .8rem; transition: all .15s; }
+  .filter-btn:hover, .filter-btn.active { background: rgba(255,255,255,.2); border-color: white; }
+  .nasjonal-link { display: inline-block; margin-left: 1rem; padding: .3rem .7rem; background: rgba(255,255,255,.2); border-radius: 6px; color: white; text-decoration: none; font-size: .8rem; border: 1px solid rgba(255,255,255,.3); }
+  .nasjonal-link:hover { background: rgba(255,255,255,.35); }
+  .stats-bar { display: flex; gap: 1rem; padding: .75rem 2rem; background: var(--card); border-bottom: 1px solid var(--border); font-size: .8rem; color: var(--text-muted); flex-wrap: wrap; }
+  .stat { display: flex; align-items: center; gap: .35rem; }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .container { max-width: 960px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
+  .toc { background: var(--card); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--border); }
+  .toc h2 { font-size: 1rem; margin-bottom: .75rem; color: var(--accent); }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .4rem; }
+  .toc-item { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem; border-radius: 6px; cursor: pointer; font-size: .82rem; transition: background .15s; text-decoration: none; color: var(--text); }
+  .toc-item:hover { background: var(--accent-light); }
+  .toc-count { background: var(--accent-light); color: var(--accent); border-radius: 10px; padding: .1rem .45rem; font-size: .7rem; font-weight: 600; min-width: 20px; text-align: center; }
+  .section { background: var(--card); border-radius: 12px; margin-bottom: 1rem; border: 1px solid var(--border); overflow: hidden; transition: box-shadow .2s; }
+  .section:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; user-select: none; gap: .75rem; }
+  .section-header:hover { background: var(--bg); }
+  .section-left { display: flex; align-items: center; gap: .75rem; flex: 1; min-width: 0; }
+  .section-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .section-title { font-size: .95rem; font-weight: 600; }
+  .section-meta { display: flex; gap: .5rem; align-items: center; flex-shrink: 0; }
+  .badge { padding: .15rem .5rem; border-radius: 10px; font-size: .7rem; font-weight: 600; }
+  .badge-good { background: var(--green-bg); color: var(--green); }
+  .badge-medium { background: var(--yellow-bg); color: var(--yellow); }
+  .badge-low { background: var(--red-bg); color: var(--red); }
+  .chevron { transition: transform .2s; font-size: .8rem; color: var(--text-muted); }
+  .section.open .chevron { transform: rotate(180deg); }
+  .section-body { display: none; padding: 0 1.25rem 1.25rem; }
+  .section.open .section-body { display: block; }
+  .skills-box { background: var(--bg); border-radius: 8px; padding: .75rem 1rem; margin-bottom: 1rem; }
+  .skills-box h4 { font-size: .78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .5rem; }
+  .skill-list { list-style: none; }
+  .skill-list li { font-size: .82rem; padding: .2rem 0; display: flex; align-items: baseline; gap: .4rem; }
+  .level-badge { font-size: .65rem; padding: .1rem .35rem; border-radius: 4px; font-weight: 700; flex-shrink: 0; }
+  .level-2 { background: var(--green-bg); color: var(--green); }
+  .level-1 { background: var(--yellow-bg); color: var(--yellow); }
+  .file-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .file-table th { text-align: left; padding: .5rem; border-bottom: 2px solid var(--border); font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); }
+  .file-table td { padding: .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .file-table tr:last-child td { border-bottom: none; }
+  .file-table tr:hover td { background: var(--bg); }
+  .file-link { font-family: 'SF Mono', 'Fira Code', monospace; font-size: .75rem; color: var(--accent); word-break: break-all; text-decoration: none; display: inline-flex; align-items: center; gap: .3rem; }
+  .file-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .file-link::before { content: '📄'; font-size: .7rem; }
+  .file-link.pdf::before { content: '📕'; }
+  .file-link.img::before { content: '🖼️'; }
+  .file-link.doc::before { content: '📝'; }
+  .tag { display: inline-block; padding: .1rem .4rem; border-radius: 4px; font-size: .65rem; font-weight: 600; margin: .1rem .15rem .1rem 0; }
+  .tag-proc { background: #ede9fe; color: #7c3aed; }
+  .tag-exam { background: #cffafe; color: #0891b2; }
+  .tag-practice { background: #fef3c7; color: #92400e; }
+  .tag-img { background: #fce7f3; color: #be185d; }
+  .gap-section { border-left: 3px solid var(--red); }
+  .gap-section .section-header { background: var(--red-bg); }
+  .no-results { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: .9rem; }
+  .missing { margin-top: .75rem; font-size: .82rem; color: var(--red); }
+  @media (max-width: 600px) { header { padding: 1rem; } .container { padding: .75rem; } .toc-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>OSCE-eksamener ↔ Nasjonal ferdighetsliste <a class="nasjonal-link" href="filer/Nasjonal.pdf" target="_blank">Apne Nasjonal.pdf</a></h1>
+  <p>Klikk pa en fil for a laste ned / apne. Klikk pa emne for a utvide.</p>
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Sok etter emne, fil, ferdighet...">
+    <button class="filter-btn active" data-filter="all">Alle</button>
+    <button class="filter-btn" data-filter="good">God dekning</button>
+    <button class="filter-btn" data-filter="medium">Middels</button>
+    <button class="filter-btn" data-filter="low">Svak/mangler</button>
+  </div>
+</header>
+<div class="stats-bar">
+  <div class="stat"><div class="stat-dot" style="background:var(--green)"></div> God dekning: 7</div>
+  <div class="stat"><div class="stat-dot" style="background:var(--yellow)"></div> Middels: 7</div>
+  <div class="stat"><div class="stat-dot" style="background:var(--red)"></div> Svak: 5</div>
+  <div class="stat">~90 unike filer</div>
+</div>
+<div class="container">
+<div class="toc" id="toc"><h2>Hurtignavigasjon</h2><div class="toc-grid" id="toc-grid"></div></div>
+<div id="sections">
+
+<!-- ANESTESI OG AKUTTMEDISIN -->
+<div class="section" data-coverage="good" data-topic="anestesi akuttmedisin hlr traumedrill abcde brannskade thoraxskade drukning naleavlasting pneumothorax intubering svelgtube luftvei defibrillator" id="sec-anestesi">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🚑</span><span class="section-title">Anestesi og akuttmedisin</span></div>
+    <div class="section-meta"><span class="badge badge-good">15 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <div class="skills-box"><h4>Nasjonal.pdf ferdigheter</h4>
+      <ul class="skill-list">
+        <li><span class="level-badge level-2">N2</span> Etablere og holde frie luftveier</li>
+        <li><span class="level-badge level-2">N2</span> Fjerning av fremmedlegeme fra ovre luftveier</li>
+        <li><span class="level-badge level-2">N2</span> Munn-til-maske / Bag-maske ventilasjon</li>
+        <li><span class="level-badge level-2">N2</span> Innsetting av svelgtube / supraglottisk luftvei</li>
+        <li><span class="level-badge level-2">N2</span> Naleavlasting av trykkpneumothorax</li>
+        <li><span class="level-badge level-2">N2</span> Basal HLR voksne, barn, nyfodte</li>
+        <li><span class="level-badge level-2">N2</span> Avansert HLR voksne</li>
+        <li><span class="level-badge level-1">N1</span> Avansert HLR barn</li>
+        <li><span class="level-badge level-2">N2</span> Stabilt sideleie</li>
+        <li><span class="level-badge level-1">N1</span> Stabilisering av columna</li>
+      </ul>
+    </div>
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-anestesi_traume-ekstremitetsblodning-dukke.pdf" target="_blank">Traume: Ekstremitetsblodning</a></td><td>Stasjon 7: Eksplosjon, blodningskontroll, kompresjon</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-anestesi_traume-stor-brannskade.pdf" target="_blank">Traume: Stor brannskade</a></td><td>Stasjon 7: Bilulykke, brannskade, Parkland-formel</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-anestesi_traume-thoraxskade.pdf" target="_blank">Traume: Thoraxskade</a></td><td>Stasjon 7: Trykkpneumothorax, ABCDE, naleavlasting</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgavei-anestesi-drukning.pdf" target="_blank">Anestesi: Drukning</a></td><td>Stasjon 10: Basal HLR med AED</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-faggproven_eksemepel-pa-oppgave-i-anestesi_hlr.pdf" target="_blank">Anestesi: HLR</a></td><td>Stasjon 8: Kollaps, HLR 30:2 med AED</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20akuttmedisin.docx" target="_blank">OSCE - akuttmedisin (oving)</a></td><td>Ovingsoppgaver akuttmedisin</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/HLR%20-%20voksne.docx" target="_blank">HLR - voksne</a></td><td>Defibrillering, adrenalin, amiodaron</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/HLR%20-%20barn.docx" target="_blank">HLR - barn</a></td><td>Nyfodt-resuscitering, barn-HLR</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Traumedrill%20og%20ABCDE.docx" target="_blank">Traumedrill og ABCDE</a></td><td>ABCDE-gjennomgang, kjevetak, sideleie</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Bevisstl%C3%B5s%20pasient%2C%20GCS.docx" target="_blank">Bevisstlos pasient, GCS</a></td><td>GCS-vurdering, ABC</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Intubasjon%2C%20svelgtube%20og%20kantarell.docx" target="_blank">Intubasjon, svelgtube, kantarell</a></td><td>Endotrakeal intubasjon, larynksmaske</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Nakkekrage.docx" target="_blank">Nakkekrage</a></td><td>Canadian C-spine rule</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Brannskade.docx" target="_blank">Brannskade</a></td><td>Brannskadevurdering, vaskebehandling</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/N%C3%9Clthorakostomi.docx" target="_blank">Nalthorakostomi</a></td><td>Nalthorakostomi-prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Thoraxdren.docx" target="_blank">Thoraxdren</a></td><td>Innlegging, steril prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- KIRURGI OG ORTOPEDI -->
+<div class="section" data-coverage="good" data-topic="kirurgi ortopedi kne ankel skulder hofte rygg nakke hand sutur abscess leddpunksjon thoraxdren gips funksjonsundersokelse" id="sec-kirurgi">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🦴</span><span class="section-title">Kirurgi og ortopedi</span></div>
+    <div class="section-meta"><span class="badge badge-good">17 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <div class="skills-box"><h4>Nasjonal.pdf ferdigheter</h4>
+      <ul class="skill-list">
+        <li><span class="level-badge level-1">N1</span> Kneleddspunksjon</li>
+        <li><span class="level-badge level-2">N2</span> Kirurgisk handvask og pakledning</li>
+        <li><span class="level-badge level-2">N2</span> Lokalanestesi / Revisjon og sutur</li>
+        <li><span class="level-badge level-1">N1</span> Incisjon og drenasje av abscesser</li>
+        <li><span class="level-badge level-1">N1</span> Innlegging av thoraxdren</li>
+        <li><span class="level-badge level-2">N2</span> Stottebandasjere / gipsing</li>
+        <li><span class="level-badge level-1">N1</span> Reponering av brudd / skulderluksasjon</li>
+      </ul>
+    </div>
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link img" href="filer/bilder/orto-osce-kne.jpg" target="_blank">Orto OSCE: Kne (bilde)</a></td><td>Scoringsskjema: Lachmann, skuff, menisk</td><td><span class="tag tag-img">Bilde</span></td></tr>
+      <tr><td><a class="file-link img" href="filer/bilder/orto-osce-ankel.jpg" target="_blank">Orto OSCE: Ankel (bilde)</a></td><td>Ottawa-regler, squeeze, fremre skuff</td><td><span class="tag tag-img">Bilde</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Leddpunksjon.docx" target="_blank">Leddpunksjon</a></td><td>Kne, skulder, ankel</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/S%C3%9Crskade%2C%20anestesi%20og%20sutur.docx" target="_blank">Sarskade, anestesi og sutur</a></td><td>Lokalanestesi, sutur-teknikk</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Incisjon%20av%20abscess.docx" target="_blank">Incisjon av abscess</a></td><td>Incisjon og drenasje</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Biopsi%20og%20fjerning%20av%20hudtumores.docx" target="_blank">Biopsi og fjerning av hudtumores</a></td><td>Stansebiopsi, eksisjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20ortopedi.docx" target="_blank">OSCE - ortopedi (oving)</a></td><td>Ortopedi ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20gastrokirurgi.docx" target="_blank">OSCE - gastrokirurgi (oving)</a></td><td>Gastrokirurgi ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20karkirurgi.docx" target="_blank">OSCE - karkirurgi (oving)</a></td><td>Karkirurgi ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/diverse-gull/Komplikasjoner%20etter%20kirurgi.docx" target="_blank">Komplikasjoner etter kirurgi</a></td><td>Postoperative komplikasjoner</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Skulder.doc" target="_blank">FU Skulder</a></td><td>Skulderundersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Bekken%20og%20hofter.doc" target="_blank">FU Bekken/hofter</a></td><td>Hofte/bekken-undersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Kne.doc" target="_blank">FU Kne</a></td><td>Kneundersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Rygg.doc" target="_blank">FU Rygg</a></td><td>Ryggundersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Nakke.doc" target="_blank">FU Nakke</a></td><td>Nakkeundersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/Fot%20og%20ankel.doc" target="_blank">FU Fot/ankel</a></td><td>Fot/ankel-undersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/funksjonsundersokelse/H%C3%9Cnd.docx" target="_blank">FU Hand</a></td><td>Handundersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- GYNEKOLOGI -->
+<div class="section" data-coverage="good" data-topic="gynekologi fodselshjelp obstetrikk spekulum bimanuel cervix spiral prevensjon svangerskapskontroll fosterlyd" id="sec-gyn">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🤰</span><span class="section-title">Gynekologi og fodselshjelp</span></div>
+    <div class="section-meta"><span class="badge badge-good">10 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <div class="skills-box"><h4>Nasjonal.pdf ferdigheter</h4>
+      <ul class="skill-list">
+        <li><span class="level-badge level-2">N2</span> Cytologisk/mikrobiologisk provetaking (gyn)</li>
+        <li><span class="level-badge level-2">N2</span> Legge inn/fjerne spiral og p-stav</li>
+        <li><span class="level-badge level-1">N1</span> Assistere ved normal fodsel</li>
+        <li><span class="level-badge level-2">N2</span> Registrere fosterlyd / Svangerskapskontroll</li>
+      </ul>
+    </div>
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link img" href="filer/bilder/gyn-osce.jpg" target="_blank">Gyn OSCE sjekklistabell (bilde)</a></td><td>Spekulum, cervikale prover, bimanuel (25p)</td><td><span class="tag tag-img">Bilde</span></td></tr>
+      <tr><td><a class="file-link img" href="filer/bilder/obs-osce.jpg" target="_blank">Obs OSCE (bilde)</a></td><td>Fundushojde, Leopold, fosterlyd, urinstiks</td><td><span class="tag tag-img">Bilde</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Spiralinnsetting.docx" target="_blank">Spiralinnsetting</a></td><td>Jaydess, steril prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/GU.docx" target="_blank">GU (Gynekologisk undersokelse)</a></td><td>Spekulum, bimanuel, provetaking</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20gynekologi.docx" target="_blank">OSCE - gynekologi (oving)</a></td><td>Gynekologi ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Svangerskapskontroll.docx" target="_blank">Svangerskapskontroll</a></td><td>Svangerskapskontroll</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/post%20partum%20kontroll.docx" target="_blank">Post partum kontroll</a></td><td>Postpartum kontroll</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Bl%C3%B5dning%20i%20svangerskapet.docx" target="_blank">Blodning i svangerskapet</a></td><td>Obstetriske komplikasjoner</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Abort.docx" target="_blank">Abort</a></td><td>Abort</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Prevensjon.docx" target="_blank">Prevensjon</a></td><td>Prevensjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- INJEKSJONER -->
+<div class="section" data-coverage="good" data-topic="injeksjon blodprove pvk venekanyle infusjon intraossos arteriell blodgass venepunksjon" id="sec-injeksjon">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">💉</span><span class="section-title">Injeksjoner og blodprover</span></div>
+    <div class="section-meta"><span class="badge badge-good">7 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <div class="skills-box"><h4>Nasjonal.pdf ferdigheter</h4><ul class="skill-list">
+      <li><span class="level-badge level-2">N2</span> PVK / IV infusjon / IV-IM-SC injeksjon</li>
+      <li><span class="level-badge level-1">N1</span> Intraossos infusjon</li>
+      <li><span class="level-badge level-2">N2</span> Arteriell blodgass / Venepunksjon</li>
+    </ul></div>
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/PVK%20og%20CVK.docx" target="_blank">PVK og CVK</a></td><td>PVK-innlegging, CVK-prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Henge%20opp%20infusjon.docx" target="_blank">Henge opp infusjon</a></td><td>IV-infusjon, drapekammer</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Intraoss%C3%B5s%20infusjon.docx" target="_blank">Intraossos infusjon</a></td><td>IO-tilgang</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Arteriell%20blodgass.docx" target="_blank">Arteriell blodgass</a></td><td>Allens test, a. radialis</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Venepunksjon.docx" target="_blank">Venepunksjon</a></td><td>Teknikk, stase, glass</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Injeksjon%20av%20medikamenter.docx" target="_blank">Injeksjon av medikamenter</a></td><td>Medikamentinjeksjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/diverse-gull/Injeksjonsteknikk.pdf" target="_blank">Injeksjonsteknikk (slides)</a></td><td>Presentasjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- HJERTE -->
+<div class="section" data-coverage="good" data-topic="hjerte kardiologi ekg blodtrykk kardiovaskuler varicer vaskuler" id="sec-hjerte">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">❤️</span><span class="section-title">Hjertesykdommer og indremedisin</span></div>
+    <div class="section-meta"><span class="badge badge-good">8 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <div class="skills-box"><h4>Nasjonal.pdf ferdigheter</h4><ul class="skill-list">
+      <li><span class="level-badge level-2">N2</span> Manuell blodtrykksmaling / Ankeltrykk (Doppler)</li>
+      <li><span class="level-badge level-2">N2</span> Taking og tolkning av EKG</li>
+    </ul></div>
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Blodtrykk.docx" target="_blank">Blodtrykk</a></td><td>Mansjett, BT-maling</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/EKG%20-%20tolkning.docx" target="_blank">EKG - tolkning</a></td><td>Frekvens, rytme, akse, PQ, QRS</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/prosedyrer/EKG%20-%20plassering.pdf" target="_blank">EKG - plassering</a></td><td>Elektrodeplassering</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20kardiologi.docx" target="_blank">OSCE - kardiologi (oving)</a></td><td>Kardiologi ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20hjerte.docx" target="_blank">Undersokelse hjerte</a></td><td>Auskultasjon, BT</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20kardiovaskul%C3%ABr.docx" target="_blank">Undersokelse kardiovaskuler</a></td><td>Hjerte + lunge + abdomen</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20vaskul%C3%ABr%2C%20claudiocatio%20intermittens.docx" target="_blank">Undersokelse vaskuler</a></td><td>Pulser, ABI, gangdistanse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20-%20varicer.docx" target="_blank">Undersokelse varicer</a></td><td>Varicer-undersokelse</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- GENERELLE -->
+<div class="section" data-coverage="good" data-topic="generelle forstehjelp sug sarskader blodninger aseptisk inhalasjon spray kolbe" id="sec-generell">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🩹</span><span class="section-title">Generelle praktiske ferdigheter</span></div>
+    <div class="section-meta"><span class="badge badge-good">6 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-anestesi_traume-ekstremitetsblodning-dukke.pdf" target="_blank">Traume: Ekstremitetsblodning</a></td><td>Blodningskontroll, kompresjon</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-anestesi_traume-stor-brannskade.pdf" target="_blank">Traume: Brannskade</a></td><td>Brannskadebehandling</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Inhalasjonsteknikk%20og%20inhalatorer.docx" target="_blank">Inhalasjonsteknikk og inhalatorer</a></td><td>Spray, kolbe, forstover</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/S%C3%9Crskade%2C%20anestesi%20og%20sutur.docx" target="_blank">Sarskade, anestesi og sutur</a></td><td>Sarrevisjon, aseptisk teknikk</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Injeksjon%20av%20medikamenter.docx" target="_blank">Injeksjon av medikamenter</a></td><td>Injeksjonsteknikker</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/diverse-gull/Injeksjonsteknikk.pdf" target="_blank">Injeksjonsteknikk (slides)</a></td><td>Presentasjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- LUNGE -->
+<div class="section" data-coverage="medium" data-topic="lunge spirometri pef oksygen inhalasjon saturasjon" id="sec-lunge">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🫁</span><span class="section-title">Lungesykdommer</span></div>
+    <div class="section-meta"><span class="badge badge-medium">5 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Inhalasjonsteknikk%20og%20inhalatorer.docx" target="_blank">Inhalasjonsteknikk</a></td><td>Forstover-teknikk</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/prosedyrer/Spirometri%20og%20PEF.pdf" target="_blank">Spirometri og PEF</a></td><td>Spirometri, PEF-maling</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/diverse-gull/Lungefunksjonstester.pdf" target="_blank">Lungefunksjonstester (slides)</a></td><td>Presentasjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20lunge.docx" target="_blank">OSCE - lunge (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20lunge.docx" target="_blank">Undersokelse lunge</a></td><td>Auskultasjon, perkusjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- UROLOGI -->
+<div class="section" data-coverage="medium" data-topic="urologi nyresykdommer blerekateter suprapubisk urinmikroskopi urinstix" id="sec-urologi">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🔬</span><span class="section-title">Urologi og nyresykdommer</span></div>
+    <div class="section-meta"><span class="badge badge-medium">6 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Bl%C3%ABrekateterisering.docx" target="_blank">Blerekateterisering</a></td><td>Steril prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Suprapubisk%20kateter.docx" target="_blank">Suprapubisk kateter</a></td><td>Suprapubispunksjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/prosedyrer/Urinmikroskopi.pdf" target="_blank">Urinmikroskopi</a></td><td>Urinmikroskopi</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/diverse-gull/Urinmikroskopi_slides.pdf" target="_blank">Urinmikroskopi (slides)</a></td><td>Presentasjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Urinstix.docx" target="_blank">Urinstix</a></td><td>Glukose, protein, leukocytter</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20urologi.docx" target="_blank">OSCE - urologi (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- KOMMUNIKASJON -->
+<div class="section" data-coverage="medium" data-topic="kommunikasjon darlige nyheter spikes parorende klage" id="sec-kommunikasjon">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🗣️</span><span class="section-title">Klinisk kommunikasjon</span></div>
+    <div class="section-meta"><span class="badge badge-medium">6 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-kommunikasjon_nakkeskade.pdf" target="_blank">Kommunikasjon: Nakkeskade</a></td><td>Informere ektefelle om C4-ryggmargsskade</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven_eksempel-pa-oppgave-i-atferdsfag.pdf" target="_blank">Atferdsfag: Levermetastaser</a></td><td>Informere om levermetastaser</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/kommunikasjon/D%C3%9Crlige%20nyheter.docx" target="_blank">Darlige nyheter (SPIKES)</a></td><td>SPIKES-protokollen</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/kommunikasjon/Min%20liste%20d%C3%A5rlige%20nyheter.rtf" target="_blank">Min liste darlige nyheter</a></td><td>Personlige notater</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/kommunikasjon/Informasjon%20om%20pasientskadeerstatninga.docx" target="_blank">Pasientskadeerstatning (KLOK)</a></td><td>Informere pasient</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20kommunikasjon.docx" target="_blank">OSCE - kommunikasjon (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- RADIOLOGI -->
+<div class="section" data-coverage="medium" data-topic="radiologi rontgen ct ultralyd abdomen thorax caput skjelett" id="sec-radiologi">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">📷</span><span class="section-title">Radiologi / Bildefremstillende</span></div>
+    <div class="section-meta"><span class="badge badge-medium">4 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/radiologi/OSCE-Radiologi-thorax.pdf" target="_blank">Radiologi: Thorax</a></td><td>Rontgen thorax-oppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/radiologi/OSCE-Radiologi-abdomen.pdf" target="_blank">Radiologi: Abdomen</a></td><td>CT/rtg abdomen-oppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/radiologi/OSCE-Radiologi-caput.pdf" target="_blank">Radiologi: Caput</a></td><td>CT caput-oppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/radiologi/OSCE-Radiologi-skjelett.pdf" target="_blank">Radiologi: Skjelett</a></td><td>Rontgen skjelett-oppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- FORDOYELSE -->
+<div class="section" data-coverage="medium" data-topic="fordoyelse abdomen rektaleksplorasjon nasogastrisk sonde prostata" id="sec-fordoyelse">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🫃</span><span class="section-title">Fordoyelsessykdommer</span></div>
+    <div class="section-meta"><span class="badge badge-medium">4 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Rektaleksplorasjon.docx" target="_blank">Rektaleksplorasjon</a></td><td>Sfinktertonus, prostata</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Nasogastrisk%20sonde.docx" target="_blank">Nasogastrisk sonde</a></td><td>Sonde-innlegging</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20abdomen.docx" target="_blank">Undersokelse abdomen</a></td><td>Inspeksjon, auskultasjon, palpasjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/modul-8/oske-modul-8-og-fagproven-eksempel-pa-oppgave-patologi.pdf" target="_blank">Patologi: Duodenum/coliaki</a></td><td>Histologisk snitt, coliaki</td><td><span class="tag tag-exam">Eksamen</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- BLODSYKDOMMER -->
+<div class="section" data-coverage="medium" data-topic="blodsykdommer hematologi blodutstryk leukemi lymfom" id="sec-blod">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🩸</span><span class="section-title">Blodsykdommer</span></div>
+    <div class="section-meta"><span class="badge badge-medium">3 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/prosedyrer/Blodutstryk.pdf" target="_blank">Blodutstryk</a></td><td>Blodutstryk-prosedyre</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20hematologi.docx" target="_blank">OSCE - hematologi (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link img" href="filer/bilder/patologi-lymfom.png" target="_blank">Patologi: Lymfom/leukemi (bilde)</a></td><td>KLL, KML, AML, Hodgkin, DLBCL</td><td><span class="tag tag-img">Bilde</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- NEVROLOGI -->
+<div class="section" data-coverage="medium" data-topic="nevrologi spinalpunksjon lumbalpunksjon hjernenerver nihss" id="sec-nevrologi">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🧠</span><span class="section-title">Nevrologi</span></div>
+    <div class="section-meta"><span class="badge badge-medium">4 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Lumbalpunksjon.docx" target="_blank">Lumbalpunksjon</a></td><td>Indikasjoner, teknikk</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20nevrologi.docx" target="_blank">OSCE - nevrologi (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20hjernenerver.docx" target="_blank">Hjernenerveundersokelse</a></td><td>Kranialnerve I-XII</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link pdf" href="filer/undersokelse/NIHSS.pdf" target="_blank">NIHSS</a></td><td>Slagskala</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- MIKROBIOLOGI -->
+<div class="section" data-coverage="medium" data-topic="mikrobiologi gramfarging grampreparat infeksjon" id="sec-mikro">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🦠</span><span class="section-title">Mikrobiologi</span></div>
+    <div class="section-meta"><span class="badge badge-medium">2 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link pdf" href="filer/prosedyrer/Mikrobiologi%20-%20gramfarging%20og%20tolkning.pdf" target="_blank">Gramfarging og tolkning</a></td><td>Grampreparat</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20infeksjon.docx" target="_blank">OSCE - infeksjon (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- PEDIATRI -->
+<div class="section" data-coverage="medium" data-topic="pediatri barn nyfodt apgar vekstkurve" id="sec-pediatri">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">👶</span><span class="section-title">Pediatri</span></div>
+    <div class="section-meta"><span class="badge badge-medium">3 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/undersokelse/Unders%C3%B5kelse%20av%20nyf%C3%B5dde.docx" target="_blank">Nyfodtundersokelse</a></td><td>Hofter, rod refleks, hjerte/lunger</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Akutt%20sykt%20barn.docx" target="_blank">Akutt sykt barn</a></td><td>ABCDE pediatri</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/HLR%20-%20barn.docx" target="_blank">HLR - barn</a></td><td>Nyfodt-resuscitering</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- FARMAKOLOGI -->
+<div class="section" data-coverage="medium" data-topic="farmakologi resept medikamenter" id="sec-farma">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">💊</span><span class="section-title">Farmakologi og reseptskriving</span></div>
+    <div class="section-meta"><span class="badge badge-medium">2 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Skrive%20resept.docx" target="_blank">Skrive resept</a></td><td>Bla/hvit resept, e-resept</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20farmakologi.docx" target="_blank">OSCE - farmakologi (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ALLMENNMEDISIN -->
+<div class="section" data-coverage="medium" data-topic="allmennmedisin hypertensjon kols lipid inr diabetes forerkort" id="sec-allmenn">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🏥</span><span class="section-title">Allmennmedisin (tverrfaglig)</span></div>
+    <div class="section-meta"><span class="badge badge-medium">6 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Hypertensjonskontroll.docx" target="_blank">Hypertensjonskontroll</a></td><td>Blodtrykksmaling</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Diabeteskontroll.docx" target="_blank">Diabeteskontroll</a></td><td>Diabetesfot, kapillar glukose</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/KOLS-kontroll.docx" target="_blank">KOLS-kontroll</a></td><td>Spirometri, inhalasjonsteknikk</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Lipidkontroll.docx" target="_blank">Lipidkontroll</a></td><td>Lipidkontroll</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/INR-kontroll.docx" target="_blank">INR-kontroll</a></td><td>Kapillar blodprove</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/F%C3%B5rerkortkontroll.docx" target="_blank">Forerkortkontroll</a></td><td>Helseerklaering</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ONH -->
+<div class="section" data-coverage="low" data-topic="onh ore nese hals neseblodning nesetamponade trakeotomi" id="sec-onh">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">👂</span><span class="section-title">ONH (ore-nese-hals)</span></div>
+    <div class="section-meta"><span class="badge badge-low">2 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Stoppe%20nesebl%C3%B5dning.docx" target="_blank">Stoppe neseblodning</a></td><td>Nesetamponade</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/N%C3%B5dtrakeostomi.docx" target="_blank">Nodtrakeostomi</a></td><td>Cricotyrotomi</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+    <p class="missing"><strong>Mangler:</strong> Oreskylling, fjerne fremmedlegeme, tympanometri</p>
+  </div>
+</div>
+
+<!-- ENDOKRINOLOGI -->
+<div class="section" data-coverage="low" data-topic="endokrinologi diabetes diabetesfot monofilament" id="sec-endo">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🔄</span><span class="section-title">Endokrinologi</span></div>
+    <div class="section-meta"><span class="badge badge-low">2 filer</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20endokrinologi.docx" target="_blank">OSCE - endokrinologi (oving)</a></td><td>Ovingsoppgaver</td><td><span class="tag tag-practice">Oving</span></td></tr>
+      <tr><td><a class="file-link doc" href="filer/allmennmedisin/Diabeteskontroll.docx" target="_blank">Diabeteskontroll</a></td><td>Diabeteskontroll</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+    <p class="missing"><strong>Mangler:</strong> Spesifikk monofilament-oppgave</p>
+  </div>
+</div>
+
+<!-- OYE -->
+<div class="section gap-section" data-coverage="low" data-topic="oye oftalmoskopi fluorescin cornea trykkmaling oyeskylling" id="sec-oye">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">👁️</span><span class="section-title">Oyesykdommer</span></div>
+    <div class="section-meta"><span class="badge badge-low">1 fil</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/oving/OSCE%20-%20diverse.docx" target="_blank">OSCE - oye (oving)</a></td><td>Oye-oppgaver (bildebasert)</td><td><span class="tag tag-practice">Oving</span></td></tr>
+    </table>
+    <p class="missing"><strong>Mangler:</strong> Fluorescin, fremmedlegeme, oyeskylling, trykkmaling, oftalmoskopi</p>
+  </div>
+</div>
+
+<!-- HUD -->
+<div class="section gap-section" data-coverage="low" data-topic="hud venerologi dermatologi biopsi kryobehandling vorter leggsar sti" id="sec-hud">
+  <div class="section-header" onclick="toggle(this)">
+    <div class="section-left"><span class="section-icon">🧴</span><span class="section-title">Hudsykdommer og venerologi</span></div>
+    <div class="section-meta"><span class="badge badge-low">1 fil</span><span class="chevron">▼</span></div>
+  </div>
+  <div class="section-body">
+    <table class="file-table"><tr><th>Fil</th><th>Innhold</th><th>Type</th></tr>
+      <tr><td><a class="file-link doc" href="filer/prosedyrer/Biopsi%20og%20fjerning%20av%20hudtumores.docx" target="_blank">Biopsi og fjerning av hudtumores</a></td><td>Stansebiopsi, eksisjon</td><td><span class="tag tag-proc">Prosedyre</span></td></tr>
+    </table>
+    <p class="missing"><strong>Mangler:</strong> Kryobehandling, currettage, leggsar, STI-provetaking, sopp</p>
+  </div>
+</div>
+
+</div>
+<div id="no-results" class="no-results" style="display:none">Ingen treff. Prov et annet sokeord.</div>
+</div>
+
+<script>
+function toggle(h){h.closest('.section').classList.toggle('open')}
+const secs=document.querySelectorAll('.section'),tg=document.getElementById('toc-grid');
+secs.forEach(s=>{const t=s.querySelector('.section-title').textContent,i=s.querySelector('.section-icon').textContent,b=s.querySelector('.badge').textContent,a=document.createElement('a');a.className='toc-item';a.href='#'+s.id;a.innerHTML=i+' '+t+' <span class="toc-count">'+b.replace(/ filer?/,'')+'</span>';a.addEventListener('click',e=>{e.preventDefault();s.classList.add('open');s.scrollIntoView({behavior:'smooth',block:'start'})});tg.appendChild(a)});
+document.getElementById('search').addEventListener('input',function(){const q=this.value.toLowerCase().trim();let v=0;secs.forEach(s=>{const m=!q||(s.dataset.topic+' '+s.textContent).toLowerCase().includes(q);s.style.display=m?'':'none';if(m)v++;if(q&&m)s.classList.add('open')});document.getElementById('no-results').style.display=v?'none':'';document.getElementById('toc').style.display=q?'none':''});
+document.querySelectorAll('.filter-btn').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');const f=b.dataset.filter;secs.forEach(s=>{s.style.display=f==='all'||s.dataset.coverage===f?'':'none'});document.getElementById('toc').style.display=f==='all'?'':'';document.getElementById('no-results').style.display='none'})});
+</script>
+</body>
+</html>
